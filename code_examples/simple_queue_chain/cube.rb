@@ -1,4 +1,3 @@
-require 'bundler/setup'
 require 'bunny'
 
 amqp_conn = Bunny.new

@@ -1,5 +1,4 @@
 # This file recieves the numbers into the first queue from RabbitMQ
-require 'bundler/setup'
 require 'bunny'
 
 amqp_conn = Bunny.new

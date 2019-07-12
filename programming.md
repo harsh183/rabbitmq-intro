@@ -82,20 +82,14 @@ docker run \
 
 ---
 
-`$ bundle `
+`$ npm install amqplib`
 
-```ruby
-# Gemfile
-source 'https://rubygems.org' do
-  gem 'bunny'
-end
-```
+`$ gem install bunny`
+
 ---
-Simple queue chain
+# Demo 1: Simple queue chain
 
 RabbitMQ is based around messages arriving in queues. Here we show how to chain them together into a simple chained pipeline.  
-
-<!-- Better explaination and maybe a picture -->
 
 ---
 The example application takes in numbers as inputs and first squares then and then cubes them.
@@ -232,8 +226,41 @@ end
 
 * After a few more seconds start it again with `$ ruby square.rb` and it starts sharing the load again automaticaly.
 
+---
 
---- 
+# Demo 2: Example user signup flow
+
+This demo shows the outline of a flow with emails. 
+
+* Emails will be sent as input
+
+* The emails will be validated by a format. 
+
+* Parallel the a welcome email will be sent and a database record will be created. The User will also get a success message back. 
+
+
+
+---
+
+`utility.rb`
+
+```ruby
+# Sets up a channel to the RabbitMQ broker using Bunny
+def setup_rabbitmq_channel
+  amqp_conn = Bunny.new
+  amqp_conn.start
+  amqp_conn.create_channel
+end
+
+# Maps an input queue to an existing exchange
+def queue_for_exchange(queue_name, exchange_name, channel)
+  exchange = channel.fanout(exchange_name)
+  named_queue = channel.queue(queue_name)
+  named_queue.bind(exchange)
+  named_queue
+end
+```
+---
 
 # Acknowledgements
 
@@ -241,6 +268,9 @@ end
 
 # Fan out
 
+---
+
+# RPC
 
 
 

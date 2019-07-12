@@ -1,5 +1,4 @@
 # This file sends the first push out to the rabbitMQ (Message Queue) that we have set up
-require 'bundler/setup'
 require 'bunny'
 
 # Bunny is our Ruby RabbitMQ adapter
