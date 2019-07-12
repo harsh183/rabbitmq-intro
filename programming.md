@@ -188,7 +188,9 @@ Run
 
 # Load Balancing
 
-And as you could see the `cube` and `square` workers had an almost perfect split of inputs distributed between them. RabbitMQ does good load balancing out of the box. 
+* And as you could see the `cube` and `square` workers had an almost perfect split of inputs distributed between them. RabbitMQ does good load balancing out of the box. 
+
+* As each part of the pipeline can be scaled independly, we can scale around bottlenecks.
 
 ---
 
@@ -262,17 +264,142 @@ end
 ```
 ---
 
-# Acknowledgements
+`validate_email.rb`
+
+```ruby
+require 'bunny'
+load 'utility.rb'
+
+channel = setup_rabbitmq_channel
+
+unvalidated_queue = queue_for_exchange('unvalidated',
+                                       'email_signups',
+                                       channel)
+validated_exchange = channel.fanout('validated')
+
+unvalidated_queue.subscribe(block: true, manual_ack: true) do |info, metadata, payload|
+  if payload.include?('@')
+    validated_exchange.publish(payload,
+                                       reply_to: metadata[:reply_to],
+                                       correlation_id: metadata[:correlation_id])
+
+    # The second param if false acknowledges only this one if true acknowledges all
+    channel.acknowledge(info.delivery_tag, false)
+    p "Accepted #{payload}"
+  else
+    # Second param is if to requeue
+    channel.reject(info.delivery_tag, false)
+    p "Rejected #{payload}"
+  end
+end
+```
 
 ---
 
-# Fan out
+`signup.js`
+
+```js
+var amqp = require('amqplib/callback_api');
+amqp.connect('amqp://localhost', (err, conn) => {
+    conn.createChannel((err, ch) => {
+        ch.assertQueue('', {exclusive: true}, (err, q) => {
+            var corr = Math.random().toString(); // identifies current process
+            payload = 'harsh@example.com'
+            ch.publish('email_signups', '', new Buffer(payload),
+                {correlationId: corr, replyTo: q.queue });
+
+            ch.consume(q.queue, msg => {
+                if (msg.properties.correlationId = corr) {
+                    console.log( msg.content.toString());
+                }
+            }, {noAck: true});
+
+        });
+    });
+});
+```
+
+
+---
+
+# Acknowledgements
+
+* Acknowledgements can let us wrap conditional logic around pipelines
+
+* valid email like 'harsh@example.com' it gives an acknowlegement and pushes it further down the queue.
+
+*  But if we give an email like 'invalid.com' then it rejects the message and it's not requeued again.
+
+* In many cases, sometimes we use rejections when one worker could not process it and it should be requeued for another worker to handle.
+
+---
+
+`database_write.rb`
+
+```ruby
+def write_to_database(email)
+  sleep 0.1
+  puts "#{email} written to database"
+end
+
+channel = setup_rabbitmq_channel
+database_write_queue = queue_for_exchange('database_write',
+                                          'validated',
+                                          channel)
+database_write_queue.subscribe(block: true) do |info, metadata, payload|
+  write_to_database(payload)
+  channel.default_exchange.publish "User saved!",
+                           routing_key: metadata[:reply_to],
+                           correlation_id: metadata[:correlation_id]
+end
+```
+
+---
+
+`send_email.rb`
+
+```ruby
+def send_email(email)
+  sleep 5
+  puts "Sent email to #{email}"
+end
+
+channel = setup_rabbitmq_channel
+welcome_queue = queue_for_exchange('welcome',
+                                   'validated',
+                                    channel)
+welcome_queue.subscribe(block: true) do |info, metadata, payload|
+  send_email(payload)
+  channel.default_exchange.publish "Check your inbox!",
+                           routing_key: metadata[:reply_to],
+                           correlation_id: metadata[:correlation_id]
+end
+```
+
+---
+
+# Fan out exchanges
+
+These demo is using exchanges to publish the outputs, and queues that are bound to each.
+
+* This lets the application be more modular and loosely coupled
+
+* The routing key syntax is not required any more.
 
 ---
 
 # RPC
 
+Like how sending letters to a postman with a return address we use
 
+* `routing_key` to indicate which client to return to
+
+* `correlation_id` which process to return to - here we use a UUID but it can be quite arbritary
+
+* As ruby's asynchronous abilities are limited we have to do this in JavaScript with the outputs
+returning back to the queue in the client side using those two values
+
+---
 
 See also: 
 
@@ -281,4 +408,6 @@ See also:
 - [Bunny Github](https://github.com/ruby-amqp/bunny) - the quick start is a decent example
 
 - [Bunny getting started](http://rubybunny.info/articles/getting_started.html) - Has quite a bit of decent tutorial stuff for common patterns
+
+- [Javascript RPC on RabbitMQ](https://www.rabbitmq.com/tutorials/tutorial-six-javascript.html)
 

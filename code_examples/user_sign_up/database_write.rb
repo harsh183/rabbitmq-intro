@@ -7,13 +7,13 @@ def write_to_database(email)
 end
 
 channel = setup_rabbitmq_channel
-database_write_queue = queue_for_exchange('validated', 
-                                          'database_write', 
+database_write_queue = queue_for_exchange('database_write',
+                                          'validated', 
                                           channel)
   
-unvalidated_queue.subscribe(block: true, manual_ack: true) do |info, metadata, payload|
+database_write_queue.subscribe(block: true) do |info, metadata, payload|
   write_to_database(payload)
-  default_exchange.publish "User saved!",
+  channel.default_exchange.publish "User saved!",
                            routing_key: metadata[:reply_to],
                            correlation_id: metadata[:correlation_id]
 end
