@@ -11,8 +11,6 @@ RabbitMQ is the most widely deployed open source message broker.
 
 ---
 
-<!-- Better way of explaining it maybe -->
-
 A message broker handles messaging between multiple protocols and recievers. 
 
 Like postman delivering letters between different types of houses, everyone only has to know how to talk to the postman.
@@ -28,9 +26,11 @@ The 'digital postman'
 * can split up messages evenly and orderly
 ---
 
+# Simple
 
+---
 
-- Simple
+# Crossplatform
 
 
 ---
