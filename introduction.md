@@ -23,11 +23,12 @@ The 'digital postman'
 
 * works in milliseconds or microseconds
 
-* handles enormous volume  
+* handles enormous volume - millions of messages going  
 
+* can split up messages evenly and orderly
 ---
 
-Motivation - why bother
+
 
 - Simple
 
@@ -55,7 +56,10 @@ Different type of usage patterns
 ---
 
 - Fan out 
-    - RPC - A to B to C to D to A
+
+---
+
+RPC - A to B to C to D to A
 
 ---
 
